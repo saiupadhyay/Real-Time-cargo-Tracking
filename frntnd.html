@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Cargo Tracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: monospace;
+      background-color: #1e1e1e;
+      color: #33ff33;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 30px;
+    }
+    h1 {
+      color: #00ffff;
+    }
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    button {
+      padding: 10px 20px;
+      font-weight: bold;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #track-btn {
+      background-color: #00ff00;
+      color: black;
+    }
+    #stop-btn {
+      background-color: #ff5555;
+      color: white;
+    }
+    #clear-btn {
+      background-color: #4444ff;
+      color: white;
+    }
+    #terminal {
+      width: 80%;
+      max-width: 800px;
+      height: 300px;
+      background-color: #000000;
+      border: 2px solid #33ff33;
+      padding: 15px;
+      overflow-y: scroll;
+      white-space: pre-wrap;
+      margin-bottom: 30px;
+    }
+    .charts {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    canvas {
+      background: #fff;
+      border-radius: 10px;
+      padding: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Real-Time Cargo Tracker</h1>
+  <div class="button-group">
+    <button id="track-btn">Start Tracking</button>
+    <button id="stop-btn">Stop</button>
+    <button id="clear-btn">Clear Console</button>
+  </div>
+  <div id="terminal"></div>
+
+  <div class="charts">
+    <canvas id="tempChart" width="150mm" height="80mm"></canvas>
+    <canvas id="humidityChart" width="150mm" height="80mm"></canvas>
+  </div>
+
+  <script>
+    const terminal = document.getElementById('terminal');
+    const trackBtn = document.getElementById('track-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const clearBtn = document.getElementById('clear-btn');
+
+    let intervalId = null;
+    let timeCounter = 0;
+
+    const tempData = {
+      labels: [],
+      datasets: [{
+        label: 'Temperature (°C)',
+        borderColor: 'red',
+        backgroundColor: 'rgba(255,0,0,0.1)',
+        data: [],
+      }]
+    };
+
+    const humidityData = {
+      labels: [],
+      datasets: [{
+        label: 'Humidity (%)',
+        borderColor: 'blue',
+        backgroundColor: 'rgba(0,0,255,0.1)',
+        data: [],
+      }]
+    };
+
+    const tempChart = new Chart(
+      document.getElementById('tempChart'),
+      {
+        type: 'line',
+        data: tempData,
+        options: {
+          responsive: true,
+          animation: false,
+          scales: {
+            x: {
+              title: { display: true, text: 'Time (s)' }
+            },
+            y: {
+              min: 0,
+              max: 60,
+              title: { display: true, text: 'Temperature (°C)' }
+            }
+          }
+        }
+      }
+    );
+
+    const humidityChart = new Chart(
+      document.getElementById('humidityChart'),
+      {
+        type: 'line',
+        data: humidityData,
+        options: {
+          responsive: true,
+          animation: false,
+          scales: {
+            x: {
+              title: { display: true, text: 'Time (s)' }
+            },
+            y: {
+              min: 0,
+              max: 100,
+              title: { display: true, text: 'Humidity (%)' }
+            }
+          }
+        }
+      }
+    );
+
+    function mockLog(message) {
+      const time = new Date().toLocaleTimeString();
+      terminal.textContent += `[${time}] ${message}\n`;
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    function updateCharts(temp, humidity) {
+      timeCounter += 3;
+      if (tempData.labels.length > 20) {
+        tempData.labels.shift();
+        tempData.datasets[0].data.shift();
+        humidityData.labels.shift();
+        humidityData.datasets[0].data.shift();
+      }
+
+      tempData.labels.push(`${timeCounter}s`);
+      tempData.datasets[0].data.push(temp);
+
+      humidityData.labels.push(`${timeCounter}s`);
+      humidityData.datasets[0].data.push(humidity);
+
+      tempChart.update();
+      humidityChart.update();
+    }
+
+    function startTracking() {
+      if (intervalId !== null) return;
+      mockLog("Initializing sensors...");
+
+      intervalId = setInterval(() => {
+        const temp = parseFloat((Math.random() * 50).toFixed(2));
+        const humidity = parseFloat((Math.random() * 100).toFixed(2));
+        const acc = parseFloat((Math.random() * 3).toFixed(2));
+        const tamper = Math.random() < 0.2;
+
+        mockLog(`Temperature: ${temp} °C`);
+        mockLog(`Humidity: ${humidity}%`);
+        mockLog(`Motion Detected: ${acc > 1.5 ? "YES" : "NO"} (${acc})`);
+        mockLog(`Tampering: ${tamper ? "DETECTED!" : "Clear"}`);
+
+        updateCharts(temp, humidity);
+
+        if (acc > 1.5 || tamper || temp < 0 || temp > 40 || humidity < 20 || humidity > 80) {
+          mockLog("⚠️ Anomaly detected. Alert sent to cloud and stakeholders.");
+          if (tamper) mockLog("🚨 Alarm triggered due to tampering!");
+        } else {
+          mockLog("Data stored locally. All systems normal.");
+        }
+
+        mockLog("----");
+      }, 3000);
+
+      trackBtn.disabled = true;
+      stopBtn.disabled = false;
+      trackBtn.textContent = "Tracking...";
+    }
+
+    function stopTracking() {
+      clearInterval(intervalId);
+      intervalId = null;
+      mockLog("Tracking stopped.");
+      trackBtn.disabled = false;
+      stopBtn.disabled = true;
+      trackBtn.textContent = "Start Tracking";
+    }
+
+    function clearConsole() {
+      terminal.textContent = "";
+    }
+
+    trackBtn.addEventListener('click', startTracking);
+    stopBtn.addEventListener('click', stopTracking);
+    clearBtn.addEventListener('click', clearConsole);
+    stopBtn.disabled = true;
+  </script>
+</body>
+</html>
